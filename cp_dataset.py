@@ -17,17 +17,18 @@ class CPDataset(data.Dataset):
         super(CPDataset, self).__init__()
         # base setting
         self.opt = opt
-        self.root = opt.dataroot
-        self.datamode = opt.datamode # train or test or self-defined
         self.stage = opt.stage # GMM or TOM
+        self.data_path = opt.dataroot
         self.data_list = opt.data_list
         self.fine_height = opt.fine_height
         self.fine_width = opt.fine_width
         self.radius = opt.radius
-        self.data_path = osp.join(opt.dataroot, opt.datamode)
         self.transform = transforms.Compose([  \
                 transforms.ToTensor(),   \
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]) # for rgb
+        self.transform_gray = transforms.Compose([  \
+                transforms.ToTensor(),   \
+                transforms.Normalize((0.5,), (0.5,))]) # for gray
         
         # load data list
         im_names = []
@@ -40,9 +41,6 @@ class CPDataset(data.Dataset):
 
         self.im_names = im_names
         self.c_names = c_names
-
-    def name(self):
-        return "CPDataset"
 
     def __getitem__(self, index):
         c_name = self.c_names[index]
@@ -83,7 +81,7 @@ class CPDataset(data.Dataset):
         parse_shape = Image.fromarray((parse_shape*255).astype(np.uint8))
         parse_shape = parse_shape.resize((self.fine_width//16, self.fine_height//16), Image.BILINEAR)
         parse_shape = parse_shape.resize((self.fine_width, self.fine_height), Image.BILINEAR)
-        shape = self.transform(parse_shape) # [-1,1]
+        shape = self.transform_gray(parse_shape) # [-1,1]
         phead = torch.from_numpy(parse_head) # [0,1]
         pcm = torch.from_numpy(parse_cloth) # [0,1]
 
@@ -112,11 +110,11 @@ class CPDataset(data.Dataset):
             if pointx > 1 and pointy > 1:
                 draw.rectangle((pointx-r, pointy-r, pointx+r, pointy+r), 'white', 'white')
                 pose_draw.rectangle((pointx-r, pointy-r, pointx+r, pointy+r), 'white', 'white')
-            one_map = self.transform(one_map)
+            one_map = self.transform_gray(one_map)
             pose_map[i] = one_map[0]
 
         # just for visualization
-        im_pose = self.transform(im_pose)
+        im_pose = self.transform_gray(im_pose)
         
         # cloth-agnostic representation
         agnostic = torch.cat([shape, im_h, pose_map], 0) 
@@ -146,55 +144,23 @@ class CPDataset(data.Dataset):
     def __len__(self):
         return len(self.im_names)
 
-class CPDataLoader(object):
-    def __init__(self, opt, dataset):
-        super(CPDataLoader, self).__init__()
-
-        if opt.shuffle :
-            train_sampler = torch.utils.data.sampler.RandomSampler(dataset)
-        else:
-            train_sampler = None
-
-        self.data_loader = torch.utils.data.DataLoader(
-                dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
-                num_workers=opt.workers, pin_memory=True, sampler=train_sampler)
-        self.dataset = dataset
-        self.data_iter = self.data_loader.__iter__()
-       
-    def next_batch(self):
-        try:
-            batch = self.data_iter.__next__()
-        except StopIteration:
-            self.data_iter = self.data_loader.__iter__()
-            batch = self.data_iter.__next__()
-
-        return batch
-
-
 if __name__ == "__main__":
     print("Check the dataset for geometric matching module!")
     
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataroot", default = "data")
-    parser.add_argument("--datamode", default = "train")
     parser.add_argument("--stage", default = "GMM")
+    parser.add_argument("--dataroot", default = "/data/zhaofuwei/cp-vton/train")
     parser.add_argument("--data_list", default = "train_pairs.txt")
+    parser.add_argument("--shuffle", action='store_true', help='shuffle input data')
     parser.add_argument("--fine_width", type=int, default = 192)
     parser.add_argument("--fine_height", type=int, default = 256)
     parser.add_argument("--radius", type=int, default = 3)
-    parser.add_argument("--shuffle", action='store_true', help='shuffle input data')
-    parser.add_argument('-b', '--batch-size', type=int, default=4)
     parser.add_argument('-j', '--workers', type=int, default=1)
-    
+    parser.add_argument('-b', '--batch-size', type=int, default=4)
     opt = parser.parse_args()
     dataset = CPDataset(opt)
-    data_loader = CPDataLoader(opt, dataset)
 
-    print('Size of the dataset: %05d, dataloader: %04d' \
-            % (len(dataset), len(data_loader.data_loader)))
+    print('Size of the dataset: %05d' % len(dataset))
     first_item = dataset.__getitem__(0)
-    first_batch = data_loader.next_batch()
-
-    from IPython import embed; embed()
 

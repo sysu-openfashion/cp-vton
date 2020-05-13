@@ -2,10 +2,11 @@
 import torch
 import torch.nn as nn
 from torch.nn import init
+import torch.nn.functional as F
 from torchvision import models
-import os
-
 import numpy as np
+
+import os
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -17,7 +18,6 @@ def weights_init_normal(m):
         init.normal_(m.weight.data, 1.0, 0.02)
         init.constant_(m.bias.data, 0.0)
 
-
 def weights_init_xavier(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -28,7 +28,6 @@ def weights_init_xavier(m):
         init.normal_(m.weight.data, 1.0, 0.02)
         init.constant_(m.bias.data, 0.0)
 
-
 def weights_init_kaiming(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -38,7 +37,6 @@ def weights_init_kaiming(m):
     elif classname.find('BatchNorm2d') != -1:
         init.normal_(m.weight.data, 1.0, 0.02)
         init.constant_(m.bias.data, 0.0)
-
 
 def init_weights(net, init_type='normal'):
     print('initialization method [%s]' % init_type)
@@ -137,7 +135,7 @@ class AffineGridGen(nn.Module):
         theta = theta.contiguous()
         batch_size = theta.size()[0]
         out_size = torch.Size((batch_size,self.out_ch,self.out_h,self.out_w))
-        return F.affine_grid(theta, out_size)
+        return F.affine_grid(theta, out_size, align_corners=True)
         
 class TpsGridGen(nn.Module):
     def __init__(self, out_h=256, out_w=192, use_regular_grid=True, grid_size=3, reg_factor=0, use_cuda=True):
@@ -277,11 +275,12 @@ class TpsGridGen(nn.Module):
         
         return torch.cat((points_X_prime,points_Y_prime),3)
         
-# Defines the Unet generator.
-# |num_downs|: number of downsamplings in UNet. For example,
-# if |num_downs| == 7, image of size 128x128 will become of size 1x1
-# at the bottleneck
 class UnetGenerator(nn.Module):
+    """Defines the Unet generator.
+    |num_downs|: number of downsamplings in UNet. For example,
+    if |num_downs| == 7, image of size 128x128 will become of size 1x1
+    at the bottleneck
+    """
     def __init__(self, input_nc, output_nc, num_downs, ngf=64,
                  norm_layer=nn.BatchNorm2d, use_dropout=False):
         super(UnetGenerator, self).__init__()
@@ -299,11 +298,11 @@ class UnetGenerator(nn.Module):
     def forward(self, input):
         return self.model(input)
 
-
-# Defines the submodule with skip connection.
-# X -------------------identity---------------------- X
-#   |-- downsampling -- |submodule| -- upsampling --|
 class UnetSkipConnectionBlock(nn.Module):
+    """Defines the submodule with skip connection.
+    X -------------------identity---------------------- X
+      |-- downsampling -- |submodule| -- upsampling --|
+    """
     def __init__(self, outer_nc, inner_nc, input_nc=None,
                  submodule=None, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d, use_dropout=False):
         super(UnetSkipConnectionBlock, self).__init__()
@@ -320,19 +319,19 @@ class UnetSkipConnectionBlock(nn.Module):
         upnorm = norm_layer(outer_nc)
 
         if outermost:
-            upsample = nn.Upsample(scale_factor=2, mode='bilinear')
+            upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
             upconv = nn.Conv2d(inner_nc * 2, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
             down = [downconv]
             up = [uprelu, upsample, upconv, upnorm]
             model = down + [submodule] + up
         elif innermost:
-            upsample = nn.Upsample(scale_factor=2, mode='bilinear')
+            upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
             upconv = nn.Conv2d(inner_nc, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
             down = [downrelu, downconv]
             up = [uprelu, upsample, upconv, upnorm]
             model = down + up
         else:
-            upsample = nn.Upsample(scale_factor=2, mode='bilinear')
+            upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
             upconv = nn.Conv2d(inner_nc*2, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
             down = [downrelu, downconv, downnorm]
             up = [uprelu, upsample, upconv, upnorm]
