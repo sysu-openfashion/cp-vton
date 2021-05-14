@@ -12,7 +12,8 @@ You can get the processed data at [GoogleDrive](https://drive.google.com/open?id
 ```
 python data/data_download.py
 ```
-
+## Pretrained Models
+We (SYSU-OpenFashion) provide pretrained models for CP-VTON. You can download them [here](https://drive.google.com/file/d/1EhF8SXNkX0jk34WVPvvxWiEfnNTVMrZI/view?usp=sharing) and upzip to the root directory of this repo, and then you should be able to directly run the test process.
 ## Geometric Matching Module
 
 ### training
@@ -30,9 +31,9 @@ You can see the results in tensorboard, as show below.
     <p>Example of GMM train. The center image is the warped cloth.</p>
 </div>
 
-### eval
+### testing
 
-An example eval command is
+An example test command is
 ```
 python test.py --name GMM --stage GMM --data_list test_pairs.txt --checkpoint checkpoints/GMM/gmm_final.pth
 ```
@@ -59,8 +60,8 @@ You can see the results in tensorboard, as show below.
 </div>
 
 
-### eavl
-An example eval command is
+### testing
+An example test command is
 
 ```
 python test.py --name TOM --stage TOM --warproot result/GMM/gmm_final.pth --data_list test_pairs.txt --checkpoint checkpoints/TOM/tom_final.pth
