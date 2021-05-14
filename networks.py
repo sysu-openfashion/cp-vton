@@ -119,7 +119,7 @@ class FeatureRegression(nn.Module):
 
     def forward(self, x):
         x = self.conv(x)
-        x = x.view(x.size(0), -1)
+        x = x.reshape(x.size(0), -1)
         x = self.linear(x)
         x = self.tanh(x)
         return x
@@ -322,7 +322,7 @@ class UnetSkipConnectionBlock(nn.Module):
             upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
             upconv = nn.Conv2d(inner_nc * 2, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
             down = [downconv]
-            up = [uprelu, upsample, upconv, upnorm]
+            up = [uprelu, upsample, upconv]
             model = down + [submodule] + up
         elif innermost:
             upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)

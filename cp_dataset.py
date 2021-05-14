@@ -19,6 +19,8 @@ class CPDataset(data.Dataset):
         self.opt = opt
         self.stage = opt.stage # GMM or TOM
         self.data_path = opt.dataroot
+        if self.stage == 'TOM':
+            self.warp_path = osp.join(opt.warproot, opt.data_list.split('.')[0])
         self.data_list = opt.data_list
         self.fine_height = opt.fine_height
         self.fine_width = opt.fine_width
@@ -51,8 +53,8 @@ class CPDataset(data.Dataset):
             c = Image.open(osp.join(self.data_path, 'cloth', c_name))
             cm = Image.open(osp.join(self.data_path, 'cloth-mask', c_name))
         else:
-            c = Image.open(osp.join(self.data_path, 'warp-cloth', c_name))
-            cm = Image.open(osp.join(self.data_path, 'warp-mask', c_name))
+            c = Image.open(osp.join(self.warp_path, 'warp-cloth', c_name))
+            cm = Image.open(osp.join(self.warp_path, 'warp-mask', c_name))
      
         c = self.transform(c)  # [-1,1]
         cm_array = np.array(cm)

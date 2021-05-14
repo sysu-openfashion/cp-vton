@@ -15,35 +15,33 @@ from visualization import board_add_images
 
 def get_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--name", default = "GMM")
-    parser.add_argument("--stage", default = "GMM")
-    parser.add_argument("--gpu_ids", default = "")
-    parser.add_argument("--multi_gpu", action='store_true', help='use multi gpu')
-    parser.add_argument("--dataroot", default = "/data/zhaofuwei/cp-vton")
+    parser.add_argument("--name", default = "GMM", help='name of the running experiment')
+    parser.add_argument("--stage", default = "GMM", help='which stage to run: [GMM | TOM]')
+    parser.add_argument("--gpu_ids", default = "2", help='currently only single gpu is supported')
+    parser.add_argument("--dataroot", default = "data/train")
+    parser.add_argument("--warproot", default='result/GMM/gmm_final.pth', help='path to the GMM result folder')
     parser.add_argument("--data_list", default = "train_pairs.txt")
     parser.add_argument("--shuffle", action='store_true', help='shuffle input data')
     parser.add_argument("--fine_width", type=int, default = 192)
     parser.add_argument("--fine_height", type=int, default = 256)
-    parser.add_argument('-j', '--workers', type=int, default=1)
+    parser.add_argument('-j', '--workers', type=int, default=4)
     parser.add_argument('-b', '--batch-size', type=int, default=4)
     parser.add_argument("--radius", type=int, default = 5)
     parser.add_argument("--grid_size", type=int, default = 5)
     parser.add_argument('--lr', type=float, default=0.0001, help='initial learning rate for adam')
     parser.add_argument("--keep_step", type=int, default = 100000)
     parser.add_argument("--decay_step", type=int, default = 100000)
-    parser.add_argument('--tensorboard_dir', type=str, default='/data/zhaofuwei/cp-vton/train/tensorboard', help='save tensorboard infos')
-    parser.add_argument('--checkpoint_dir', type=str, default='/data/zhaofuwei/cp-vton/train/checkpoints', help='save checkpoint infos')
+    parser.add_argument('--tensorboard_dir', type=str, default='tensorboard/train', help='save tensorboard infos')
+    parser.add_argument('--checkpoint_dir', type=str, default='checkpoints', help='save checkpoint infos')
     parser.add_argument('--checkpoint', type=str, default='', help='model checkpoint for initialization')
     parser.add_argument("--display_count", type=int, default = 20)
-    parser.add_argument("--save_count", type=int, default = 100)
+    parser.add_argument("--save_count", type=int, default = 5000)
 
     opt = parser.parse_args()
     return opt
 
 def train_gmm(opt, train_loader, model, board):
     # load model
-    if opt.multi_gpu:
-        model = nn.DataParallel(model)
     model.cuda()
     model.train()
 
@@ -115,8 +113,6 @@ def train_gmm(opt, train_loader, model, board):
 
 def train_tom(opt, train_loader, model, board):
     # load model
-    if opt.multi_gpu:
-        model = nn.DataParallel(model)
     model.cuda()
     model.train()
     
@@ -163,8 +159,8 @@ def train_tom(opt, train_loader, model, board):
         
         outputs = model(torch.cat([agnostic, c],1))
         p_rendered, m_composite = torch.split(outputs, 3,1)
-        p_rendered = F.tanh(p_rendered)
-        m_composite = F.sigmoid(m_composite)
+        p_rendered = torch.tanh(p_rendered)
+        m_composite = torch.sigmoid(m_composite)
         p_tryon = c * m_composite+ p_rendered * (1 - m_composite)
 
         visuals = [ [im_h, shape, im_pose], 
